@@ -976,6 +976,7 @@ const game = {
         }
         this.checkAchievements();
         this.updateUI();
+        if (!this.gameOverTriggered) this.saveGame(true);
     },
     randomEvent() {
         this.lastEventImpact = 0; this.lastEventUserGain = 0; this.lastEventMoneyLoss = 0; this.lastEventSuccess = false;
@@ -1398,6 +1399,7 @@ const game = {
     },
     gameOver(reason, win = false) {
         this.gameOverTriggered = true;
+        this.clearSave();
         this.unlockFullscreen();
         document.getElementById('gameOverTitle').innerText = win ? '🎉胜利' : '💀结束';
         document.getElementById('gameOverReason').innerText = reason;
@@ -1424,6 +1426,94 @@ const game = {
         this.renderPuzzles();
     },
     toggleSound() { if (this.sound) this.sound.toggle(); },
+    // ===== 💾 存档系统 =====
+    saveKey: 'oj-save-v2',
+    saveFields: ['year','month','balance','reputation','ap','rdPoints','acPoints','comPoints','totalUsers','lastSubmits','lastSolutions','high','medium','low','diskTotal','diskUsed','webCores','webLevel','judgeCores','judgeLevel','staff','staffLimit','features','loans','deposits','cardBalance','userGrowthBoost','continuousFailMonths','yinQi','yinDe','ghostMoney','ghostRitualCount','talismanUsed','ghostCooperateSuccess','ghostEventCount','transactions','logEntries','contestCount','archUpgradeCount','adCount','donateCount','totalLoanAmount','totalDepositAmount','consecutiveProfit','coopSuccessCount','coopResearchSuccess','coopInternationalSuccess','coopGovSuccess','eventHistory','consecutiveBadEvents','consecutiveGoodEvents','lastEventImpact','lastEventUserGain','lastEventMoneyLoss','lastEventSuccess','hasDefendedHack','taxManualEnabled','jumpScareCooldown','fakeAlertCooldown','horrorWarningShown'],
+    buildSaveData() {
+        const data = { version: 2, savedAt: Date.now(), theme: document.documentElement.getAttribute('data-theme') };
+        this.saveFields.forEach(k => { data[k] = JSON.parse(JSON.stringify(this[k])); });
+        data.courses = this.courses.map(c => ({ id: c.id, level: c.level, cooldown: c.cooldown }));
+        data.achievements = this.achievements.filter(a => a.unlocked).map(a => a.id);
+        data.puzzles = this.puzzles.filter(p => p.answered).map(p => p.id);
+        return data;
+    },
+    getSaveData() {
+        try { const raw = localStorage.getItem(this.saveKey); return raw ? JSON.parse(raw) : null; } catch (e) { return null; }
+    },
+    applySaveData(data) {
+        if (!data || data.version !== 2) return false;
+        this.saveFields.forEach(k => { if (data[k] !== undefined) this[k] = data[k]; });
+        if (Array.isArray(data.courses)) data.courses.forEach(sc => { const c = this.courses.find(x => x.id === sc.id); if (c) { c.level = sc.level || 0; c.cooldown = sc.cooldown || 0; } });
+        if (Array.isArray(data.achievements)) this.achievements.forEach(a => { a.unlocked = data.achievements.includes(a.id); });
+        if (Array.isArray(data.puzzles)) this.puzzles.forEach(p => { p.answered = data.puzzles.includes(p.id); });
+        const theme = data.theme;
+        if (theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            const sel = document.getElementById('themeSelect');
+            if (sel) { sel.value = theme; sel.disabled = (theme === 'horror'); }
+            if (theme === 'horror') localStorage.setItem('oj-horror-locked', 'true');
+        }
+        return true;
+    },
+    saveGame(auto = false) {
+        try {
+            if (this.gameOverTriggered) return false;
+            localStorage.setItem(this.saveKey, JSON.stringify(this.buildSaveData()));
+            this.updateSaveInfo();
+            if (!auto) this.showNotify('💾 游戏进度已保存', 'success');
+            return true;
+        } catch (e) { if (!auto) this.showNotify('❌ 保存失败：浏览器存储不可用', 'warning'); return false; }
+    },
+    loadGame(showTip = true) {
+        const data = this.getSaveData();
+        if (!data) { if (showTip) this.showNotify('没有找到存档', 'info'); return false; }
+        if (!this.applySaveData(data)) { if (showTip) this.showNotify('❌ 存档版本无效', 'warning'); return false; }
+        this.gameOverTriggered = false;
+        document.getElementById('gameOverModal').style.display = 'none';
+        this.updateUI(); this.renderLog(); this.renderPuzzles(); this.renderAchievements(); this.updateThemeVisibility(); this.updateSaveInfo();
+        if (showTip) this.showNotify(`📂 已读取存档 (第${data.year}年${data.month}月)`, 'success');
+        return true;
+    },
+    clearSave() { try { localStorage.removeItem(this.saveKey); } catch (e) {} this.updateSaveInfo(); },
+    exportSave() {
+        try {
+            const blob = new Blob([JSON.stringify(this.buildSaveData(), null, 2)], { type: 'application/json' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `OJ模拟器存档_第${this.year}年${this.month}月.json`;
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+            this.showNotify('📤 存档已导出为 JSON 文件', 'success');
+        } catch (e) { this.showNotify('❌ 导出失败', 'warning'); }
+    },
+    handleImportFile(input) {
+        const file = input.files && input.files[0];
+        input.value = '';
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+            try {
+                const data = JSON.parse(reader.result);
+                if (this.applySaveData(data)) {
+                    this.gameOverTriggered = false;
+                    document.getElementById('gameOverModal').style.display = 'none';
+                    this.saveGame(true);
+                    this.updateUI(); this.renderLog(); this.renderPuzzles(); this.renderAchievements(); this.updateThemeVisibility();
+                    this.showNotify(`📥 存档导入成功 (第${data.year}年${data.month}月)`, 'success');
+                } else this.showNotify('❌ 存档文件格式无效', 'warning');
+            } catch (e) { this.showNotify('❌ 存档文件解析失败', 'warning'); }
+        };
+        reader.readAsText(file);
+    },
+    updateSaveInfo() {
+        const el = document.getElementById('saveInfoText');
+        if (!el) return;
+        const data = this.getSaveData();
+        if (data) {
+            const d = new Date(data.savedAt);
+            el.innerText = `存档: 第${data.year}年${data.month}月 · ${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')} (每月自动保存)`;
+        } else el.innerText = '暂无存档，每月结算时自动保存';
+    },
     init() {
         this.sound = new HorrorAudio();
         this.renderStaticContent();
@@ -1452,6 +1542,19 @@ const game = {
                     return false;
                 }
             }
+            // ⌨️ 快捷键：输入框聚焦或弹窗打开时不触发
+            const tag = (e.target && e.target.tagName) || '';
+            if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+            if (this.gameOverTriggered) return;
+            if (document.getElementById('resumeModal')?.style.display === 'flex') return;
+            if (document.getElementById('taxModal')?.style.display === 'flex') return;
+            if (document.getElementById('win7Desktop')?.style.display === 'block') return;
+            if (e.code === 'Space' || e.key === 'n' || e.key === 'N') { e.preventDefault(); this.nextMonth(); }
+            else if (e.key === 's' || e.key === 'S') { e.preventDefault(); this.saveGame(); }
+            else if (/^[1-9]$/.test(e.key)) {
+                const tabs = ['rd', 'contest', 'ad', 'coop', 'infra', 'hr', 'school', 'bank', 'ledger'];
+                switchTab(tabs[parseInt(e.key) - 1]);
+            }
         });
         document.addEventListener('contextmenu', (e) => {
             if (this.getHorrorActive() && !this.gameOverTriggered) { e.preventDefault(); return false; }
@@ -1461,13 +1564,26 @@ const game = {
                 if (this.sound) this.sound.playClick();
             }
         });
-        localStorage.removeItem('oj-theme');
-        localStorage.removeItem('oj-horror-locked');
-        document.documentElement.setAttribute('data-theme', 'chinese');
-        document.getElementById('themeSelect').value = 'chinese';
-        document.getElementById('themeSelect').disabled = false;
+        const savedData = this.getSaveData();
+        if (savedData && savedData.year && !savedData._done) {
+            // 💾 检测到存档：弹出继续游戏窗口，主题暂不重置
+            const info = document.getElementById('resumeInfo');
+            if (info) {
+                const d = new Date(savedData.savedAt);
+                info.innerText = `进度：第${savedData.year}年${savedData.month}月 · 资金 $${Number(savedData.balance).toFixed(3)} · 用户 ${savedData.totalUsers}\n保存于 ${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+            }
+            const modal = document.getElementById('resumeModal');
+            if (modal) modal.style.display = 'flex';
+        } else {
+            localStorage.removeItem('oj-theme');
+            localStorage.removeItem('oj-horror-locked');
+            document.documentElement.setAttribute('data-theme', 'chinese');
+            document.getElementById('themeSelect').value = 'chinese';
+            document.getElementById('themeSelect').disabled = false;
+        }
         this.updateThemeVisibility();
-        document.getElementById('achievementSummary').innerText = '0/74';
+        this.updateSaveInfo();
+        document.getElementById('achievementSummary').innerText = `${this.achievements.filter(a => a.unlocked).length}/${this.achievements.length}`;
     }
 };
 
@@ -1513,9 +1629,30 @@ async function switchTheme(t) {
 }
 
 function restartGame() {
+    if (window.game && game.clearSave) game.clearSave();
     localStorage.removeItem('oj-horror-locked');
     localStorage.setItem('oj-theme', 'chinese');
     location.reload();
+}
+
+function resumeGame() {
+    document.getElementById('resumeModal').style.display = 'none';
+    if (game.loadGame(false)) {
+        if (game.getHorrorActive()) { game.requestFullscreen(); game.lockFullscreen(); }
+        game.showNotify(`📂 欢迎回来，站长 (第${game.year}年${game.month}月)`, 'success');
+    }
+}
+
+function startNewGame() {
+    document.getElementById('resumeModal').style.display = 'none';
+    game.clearSave();
+    localStorage.removeItem('oj-horror-locked');
+    localStorage.removeItem('oj-theme');
+    document.documentElement.setAttribute('data-theme', 'chinese');
+    document.getElementById('themeSelect').value = 'chinese';
+    document.getElementById('themeSelect').disabled = false;
+    game.updateThemeVisibility(); game.updateUI();
+    game.showNotify('🆕 新的征程开始了，站长！', 'info');
 }
 
 window.game = game;

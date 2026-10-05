@@ -55,6 +55,7 @@
             </div>
             <div class="stat-box" onclick="switchTab('achievements')"><div class="stat-label">🏆 成就进度</div><div class="stat-value" id="achievementSummary">0/74</div><div class="progress-bar-container"><div class="progress-bar" id="achievementProgressBar" style="width:0%"></div></div></div>
             <div class="theme-selector"><span>🎨</span><select id="themeSelect" onchange="switchTheme(this.value)" class="convert-select"><option value="chinese">墨韵</option><option value="dark">暗夜</option><option value="light">素白</option><option value="celadon">青瓷</option><option value="bamboo">竹韵</option><option value="frost">霜华</option><option value="rosewood">玫瑰</option><option value="gilded">鎏金</option><option value="ice">冰魄</option><option value="horror">🏮中式恐怖</option></select></div>
+            <div class="action-card"><div class="action-title">💾 存档管理</div><div class="action-desc" id="saveInfoText">暂无存档，每月结算时自动保存</div><div class="save-btn-row"><button class="btn-small" onclick="game.saveGame()">💾 保存</button><button class="btn-small" onclick="game.loadGame()">📂 读取</button><button class="btn-small" onclick="game.exportSave()">📤 导出</button><button class="btn-small" onclick="document.getElementById('importSaveInput').click()">📥 导入</button></div><input type="file" id="importSaveInput" accept=".json,application/json" style="display:none;" onchange="game.handleImportFile(this)"></div>
             <div class="action-card" style="margin-top:auto;"><div class="action-title">💀 精算纳税</div><div class="action-desc" id="taxModeDesc">关闭 (自动扣税22%)</div><button class="btn-small" onclick="game.toggleTaxMode()" id="toggleTaxBtn">开启</button></div>
             <div class="action-card yin-element" id="ritualCard"><div class="action-title">🕯️ 阴阳仪式</div><div class="action-desc" id="ritualDesc">消耗纸钱进行仪式</div><button class="btn-small btn-ritual" onclick="game.performRitual()" id="ritualBtn">🔮 烧纸驱阴 (100纸钱)</button></div>
         </div>
@@ -67,6 +68,7 @@
                 <button class="btn" id="desktopBtn" onclick="game.openVirtualDesktop()">💻 虚拟靶场</button>
                 <button class="btn btn-ritual yin-element" id="talismanBtn" onclick="game.useTalisman()" style="font-size:0.8rem;">🪭 黄符护体 (200纸钱)</button>
                 <button class="btn btn-ritual yin-element" id="ghostCoopBtn" onclick="game.ghostCooperate()" style="font-size:0.8rem;">👻 阴间合作 (500纸钱)</button>
+                <div class="hotkey-hint">⌨️ 快捷键：空格/N = 下个月 · 1-9 = 切换页签 · S = 保存</div>
             </div>
             <div class="tab-container">
                 <div class="tab-buttons">
@@ -105,6 +107,7 @@
     <!-- 通知、游戏结束、纳税弹窗、虚拟桌面等 -->
     <div id="notification" class="notification"><div id="notifyMsg"></div></div>
     <div id="gameOverModal" class="game-over-modal"><div class="game-over-content"><h2 id="gameOverTitle">游戏结束</h2><p id="gameOverReason"></p><button class="btn" onclick="restartGame()">重新开始</button></div></div>
+    <div id="resumeModal" class="resume-modal"><div class="resume-modal-content"><h2>💾 检测到游戏存档</h2><p id="resumeInfo"></p><div class="resume-btn-row"><button class="btn" onclick="resumeGame()">📂 继续游戏</button><button class="btn" onclick="startNewGame()">🆕 重新开始</button></div></div></div>
     <div id="taxModal" class="tax-modal"><div class="tax-modal-content"><h3>📜 税务精算</h3><div id="taxSummary"></div><div class="tax-input-group"><input type="number" id="taxPaymentInput" class="bank-input" placeholder="请输入纳税金额" step="0.001"><button class="btn-small" id="confirmTaxBtn">确认纳税</button></div><p style="color:var(--danger);margin-top:8px;" id="taxErrorMessage"></p></div></div>
 
     <div id="win7Desktop" class="win7-desktop">

@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="chinese">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>OJ运营模拟器</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- ===== 全屏提示 ===== -->
+    <div id="fullscreenPrompt"><div class="prompt-text">🪦 点击进入全屏 🪦</div><div class="prompt-sub">生死契已签，无法回头...</div></div>
+    <div id="jumpScareOverlay"><div id="jumpScareBg"></div><div id="jumpScareContent"></div></div>
+    <div id="cornerGhost">👤</div>
+    <div id="edgeHandprint"></div>
+    <button class="sound-toggle" id="soundToggle" onclick="game.toggleSound()">🔊 音效</button>
+
+    <div class="container">
+        <!-- 左侧面板 -->
+        <div class="left-panel">
+            <div class="month-indicator" id="monthDisplay">第1个月 (2013.1)</div>
+            <div id="bankruptWarning" class="warning" style="display:none;">⚠️ 破产预警 · 阴债缠身</div>
+            <div class="issue-panel"><div class="stat-label">📋 当前问题</div><div id="issueList"></div></div>
+            <div class="stat-box"><div class="stat-label">💰 资金</div><div class="stat-value" style="color:var(--accent);">$<span id="display_money">300.000</span></div></div>
+            <div class="stat-box"><div class="stat-label">⚡ 行动力 (AP)</div><div class="stat-value" style="color:var(--success);"><span id="display_ap">100</span>/100</div>
+                <div class="convert-row"><span>10AP转换:</span><select id="convertTypeTop" class="convert-select"><option value="rd">研发</option><option value="ac">学术</option><option value="com">社区</option></select><button class="btn-small" onclick="game.convertAP()">转换</button></div>
+            </div>
+            <div class="stat-box yin-indicator yin-element" id="yinStatsBox">
+                <div class="stat-label">👻 阴气值</div><div class="stat-value" style="color:#bb77dd;" id="display_yin">0</div>
+                <div class="progress-bar-container"><div class="progress-bar yin-bar" id="yin_bar" style="width:0%"></div></div>
+                <div class="stat-row"><span>阴德值</span><span id="display_yinde">50</span></div>
+                <div class="stat-row"><span>🪙 纸钱</span><span id="display_ghostMoney">0</span></div>
+            </div>
+            <div class="stat-box"><div class="stat-label">📊 运营数据</div>
+                <div class="stat-row"><span>总用户</span><span id="display_users">50</span></div>
+                <div class="stat-row"><span>上月提交</span><span id="last_submit">0</span></div>
+                <div class="stat-row"><span>上月题解</span><span id="last_solution">0</span></div>
+                <div class="stat-row"><span>题库(高/中/低)</span><span><span id="high_q">0</span>/<span id="mid_q">0</span>/<span id="low_q">0</span></span></div>
+                <div class="stat-row"><span>硬盘占用</span><span><span id="disk_used">0.000</span>/<span id="disk_total">20.000</span>GB</span></div>
+            </div>
+            <div class="stat-box"><div class="stat-label">⭐ 信誉</div><div class="stat-value" id="display_rep">0.000</div><div class="progress-bar-container"><div class="progress-bar" id="rep_bar" style="width:50%"></div></div></div>
+            <div class="stat-box"><div class="stat-label">📦 资源点</div>
+                <div class="stat-row">🔬研发:<span id="rd_pts">0</span></div><div class="stat-row">📚学术:<span id="ac_pts">0</span></div><div class="stat-row">👥社区:<span id="com_pts">0</span></div>
+            </div>
+            <div class="stat-box"><div class="stat-label">🖥️ 服务器</div>
+                <div class="stat-row">Web核<span id="web_core">2</span> Lv.<span id="web_lv">1</span></div>
+                <div class="stat-row">评测核<span id="judge_core">1</span> Lv.<span id="judge_lv">1</span></div>
+                <div class="stat-row">Web负载:<span id="web_load">30</span>/<span id="web_cap">300</span></div>
+                <div class="stat-row">评测负载:<span id="judge_load">20</span>/<span id="judge_cap">150</span></div>
+            </div>
+            <div class="forecast-box">
+                <div class="forecast-item"><div class="forecast-label">预计收入</div><div class="forecast-number">$<span id="forecast_income">350.000</span></div></div>
+                <div class="forecast-item"><div class="forecast-label">工资支出</div><div class="forecast-number">$<span id="forecast_salary">0.000</span></div></div>
+                <div class="forecast-item"><div class="forecast-label">维护支出</div><div class="forecast-number">$<span id="forecast_maintain">0.000</span></div></div>
+                <div class="forecast-item"><div class="forecast-label">净收支</div><div class="forecast-number" id="forecast_net">+350.000</div></div>
+            </div>
+            <div class="stat-box" onclick="switchTab('achievements')"><div class="stat-label">🏆 成就进度</div><div class="stat-value" id="achievementSummary">0/74</div><div class="progress-bar-container"><div class="progress-bar" id="achievementProgressBar" style="width:0%"></div></div></div>
+            <div class="theme-selector"><span>🎨</span><select id="themeSelect" onchange="switchTheme(this.value)" class="convert-select"><option value="chinese">墨韵</option><option value="dark">暗夜</option><option value="light">素白</option><option value="celadon">青瓷</option><option value="bamboo">竹韵</option><option value="frost">霜华</option><option value="rosewood">玫瑰</option><option value="gilded">鎏金</option><option value="ice">冰魄</option><option value="horror">🏮中式恐怖</option></select></div>
+            <div class="action-card" style="margin-top:auto;"><div class="action-title">💀 精算纳税</div><div class="action-desc" id="taxModeDesc">关闭 (自动扣税22%)</div><button class="btn-small" onclick="game.toggleTaxMode()" id="toggleTaxBtn">开启</button></div>
+            <div class="action-card yin-element" id="ritualCard"><div class="action-title">🕯️ 阴阳仪式</div><div class="action-desc" id="ritualDesc">消耗纸钱进行仪式</div><button class="btn-small btn-ritual" onclick="game.performRitual()" id="ritualBtn">🔮 烧纸驱阴 (100纸钱)</button></div>
+        </div>
+
+        <!-- 右侧面板 -->
+        <div class="right-panel">
+            <div class="btn-group">
+                <button class="btn" id="nextMonthBtn">⏩ 进入下个月</button>
+                <button class="btn" id="donateBtn">💰 捐款 (50AP)</button>
+                <button class="btn" id="desktopBtn" onclick="game.openVirtualDesktop()">💻 虚拟靶场</button>
+                <button class="btn btn-ritual yin-element" id="talismanBtn" onclick="game.useTalisman()" style="font-size:0.8rem;">🪭 黄符护体 (200纸钱)</button>
+                <button class="btn btn-ritual yin-element" id="ghostCoopBtn" onclick="game.ghostCooperate()" style="font-size:0.8rem;">👻 阴间合作 (500纸钱)</button>
+            </div>
+            <div class="tab-container">
+                <div class="tab-buttons">
+                    <button class="tab-btn active" onclick="switchTab('rd')">🔬研发</button>
+                    <button class="tab-btn" onclick="switchTab('contest')">🏆赛事</button>
+                    <button class="tab-btn" onclick="switchTab('ad')">📢广告</button>
+                    <button class="tab-btn" onclick="switchTab('coop')">🤝合作</button>
+                    <button class="tab-btn" onclick="switchTab('infra')">🖥️基建</button>
+                    <button class="tab-btn" onclick="switchTab('hr')">🧑‍💼人才</button>
+                    <button class="tab-btn" onclick="switchTab('school')" id="schoolTabBtn">🏫网校</button>
+                    <button class="tab-btn" onclick="switchTab('bank')">🏦银行</button>
+                    <button class="tab-btn" onclick="switchTab('ledger')">📊账簿</button>
+                    <button class="tab-btn" onclick="switchTab('puzzle')">🧩解密</button>
+                    <button class="tab-btn" onclick="switchTab('achievements')">🏆成就</button>
+                </div>
+                <div class="tab-content active" id="rd"><h3>✨ 功能研发</h3><div class="action-grid" id="rdGrid"></div><div class="section-title">📚 题库扩充</div><div class="action-grid" id="problemGrid"></div></div>
+                <div class="tab-content" id="contest"><h3>🏆 赛事运营</h3><div class="action-grid" id="contestGrid"></div></div>
+                <div class="tab-content" id="ad"><h3>📢 广告公司</h3><div class="action-grid" id="adGrid"></div></div>
+                <div class="tab-content" id="coop"><h3>🤝 高风险合作</h3><div class="action-grid" id="coopGrid"></div><div class="warning yin-element">⚠️ 合作风险极高，阴间合作尤为凶险！</div></div>
+                <div class="tab-content" id="infra"><h3>🔧 基础设施</h3><div class="action-grid" id="infraGrid"></div></div>
+                <div class="tab-content" id="hr"><h3>🧑‍💼 人才招募 (上限20人)</h3><div class="staff-limit" id="staffCount">当前员工: 0/20</div><div class="action-grid" id="hrGrid"></div><button class="btn" onclick="game.fireEmployee()" style="margin:12px 0;">🔥 开除员工(扣信誉0.250)</button><div class="staff-list" id="staffList">暂无员工</div></div>
+                <div class="tab-content" id="school"><h3>🏫 网校管理</h3><div id="schoolLockedMessage" style="display:none;color:var(--danger);">⚠️ 请先在研发中心解锁网校功能</div><div id="schoolContent"><p>开课或升级后有3个月冷却期。</p><div class="course-grid" id="courseGrid"></div></div></div>
+                <div class="tab-content" id="bank"><h3>🏦 银行系统</h3><div class="bank-table"><div class="bank-row bank-header"><span>类型</span><span>金额</span><span>利率/利息</span><span>到期</span></div><div id="loanList"></div><div id="depositList"></div></div>
+                    <div class="section-title">💳 活期 (月息1.5%)</div><div class="bank-row"><span>活期余额</span><span id="cardBalanceDisplay">$0.000</span></div>
+                    <div class="bank-input-group"><input type="number" id="cardAmount" class="bank-input" placeholder="金额" step="0.001" value="100"><button class="btn-small" onclick="game.cardDeposit()">存入</button><button class="btn-small" onclick="game.cardWithdraw()">取出</button></div>
+                    <div class="section-title">💰 贷款</div><div class="bank-input-group"><input type="number" id="loanAmount" class="bank-input" placeholder="金额" step="0.001" value="2000"><button class="btn-small" onclick="game.takeLoan()">申请(月息4%)</button></div>
+                    <div class="section-title">💵 定期存款</div><div class="bank-input-group"><input type="number" id="depositAmount" class="bank-input" placeholder="金额" step="0.001" value="1000"><select id="depositTerm" class="convert-select"><option value="6">6月(总息20%)</option><option value="12">1年(50%)</option><option value="24">2年(140%)</option><option value="36">3年(300%)</option><option value="48">4年(520%)</option><option value="60">5年(800%)</option></select><button class="btn-small" onclick="game.makeDeposit()">存入</button></div></div>
+                <div class="tab-content" id="ledger"><h3>📊 本月账簿</h3><button class="btn-small" onclick="game.exportLedger()" style="margin-bottom:8px;">📥 导出</button><div id="ledgerContent" class="ledger-container"></div></div>
+                <div class="tab-content" id="puzzle"><h3>🧩 解密挑战</h3><div class="action-desc" style="margin-bottom:12px;">完成谜题可获得丰厚奖励</div><div id="puzzleList"></div></div>
+                <div class="tab-content" id="achievements"><h3>🏆 成就殿堂</h3><div class="achievements-container" id="achievementsList"></div></div>
+            </div>
+            <div class="log-panel"><div class="log-header"><span class="log-title">📋 事件日志</span><button class="btn-small" id="exportLogBtn">📥 导出</button></div><div class="log-container" id="logContainer"></div></div>
+        </div>
+    </div>
+
+    <!-- 通知、游戏结束、纳税弹窗、虚拟桌面等 -->
+    <div id="notification" class="notification"><div id="notifyMsg"></div></div>
+    <div id="gameOverModal" class="game-over-modal"><div class="game-over-content"><h2 id="gameOverTitle">游戏结束</h2><p id="gameOverReason"></p><button class="btn" onclick="restartGame()">重新开始</button></div></div>
+    <div id="taxModal" class="tax-modal"><div class="tax-modal-content"><h3>📜 税务精算</h3><div id="taxSummary"></div><div class="tax-input-group"><input type="number" id="taxPaymentInput" class="bank-input" placeholder="请输入纳税金额" step="0.001"><button class="btn-small" id="confirmTaxBtn">确认纳税</button></div><p style="color:var(--danger);margin-top:8px;" id="taxErrorMessage"></p></div></div>
+
+    <div id="win7Desktop" class="win7-desktop">
+        <div class="win7-close-desktop" onclick="game.closeVirtualDesktop()" title="关闭桌面返回游戏">✕ 关闭桌面</div>
+        <div class="win7-icons">
+            <div class="win7-icon" data-tool="computer"><span class="icon-img">🖥️</span><span class="icon-label">计算机</span></div>
+            <div class="win7-icon" data-tool="recycle"><span class="icon-img">🗑️</span><span class="icon-label">回收站</span></div>
+            <div class="win7-icon" data-tool="network"><span class="icon-img">🌐</span><span class="icon-label">网络</span></div>
+            <!-- 新增四个图标 -->
+            <div class="win7-icon" data-tool="ie"><span class="icon-img">🌐</span><span class="icon-label">Internet Explorer</span></div>
+            <div class="win7-icon" data-tool="media"><span class="icon-img">🎵</span><span class="icon-label">Windows Media Player</span></div>
+            <div class="win7-icon" data-tool="notepad"><span class="icon-img">📄</span><span class="icon-label">记事本</span></div>
+            <div class="win7-icon" data-tool="calc"><span class="icon-img">🔢</span><span class="icon-label">计算器</span></div>
+            <!-- 安全工具 -->
+            <div class="win7-icon" data-tool="firewall"><span class="icon-img">🛡️</span><span class="icon-label">防火墙</span></div>
+            <div class="win7-icon" data-tool="antivirus"><span class="icon-img">🛡️🔍</span><span class="icon-label">杀毒软件</span></div>
+            <div class="win7-icon" data-tool="terminal"><span class="icon-img">💻</span><span class="icon-label">终端</span></div>
+            <div class="win7-icon" data-tool="taskmgr"><span class="icon-img">📊</span><span class="icon-label">任务管理器</span></div>
+            <div class="win7-icon" data-tool="recovery"><span class="icon-img">💾</span><span class="icon-label">数据恢复</span></div>
+            <div class="win7-icon" data-tool="decompile"><span class="icon-img">🧩</span><span class="icon-label">反编译</span></div>
+            <div class="win7-icon" data-tool="backup"><span class="icon-img">📦</span><span class="icon-label">备份</span></div>
+            <div class="win7-icon" data-tool="problems"><span class="icon-img">📋</span><span class="icon-label">电脑问题</span></div>
+        </div>
+        <div id="win7Window" class="win7-window">
+            <div class="titlebar"><span id="winTitle">工具</span><div class="win-controls"><span class="min-btn" onclick="game.minimizeWindow()">─</span><span class="close-btn" onclick="game.closeWindow()">✕</span></div></div>
+            <div class="window-body" id="winBody">
+                <div id="winDefaultContent"><div class="tool-desc" id="winDesc">工具描述</div><button class="tool-btn" id="winActionBtn" onclick="game.executeTool()">执行</button><div class="result-msg" id="winResult" style="display:none;">结果</div></div>
+                <div id="winProblemsContent" style="display:none;"><div style="font-weight:bold; margin-bottom:8px;">📋 当前电脑问题</div><div id="winProblemsList"></div></div>
+            </div>
+        </div>
+        <div class="win7-taskbar">
+            <div class="win7-start" id="winStartBtn" onclick="game.toggleStartMenu()"><span class="start-icon">🪟</span><span class="start-text">开始</span></div>
+            <div class="win7-taskbar-items" id="taskbarItems"></div>
+            <div class="win7-tray"><span class="tray-icons">🔊 📶</span><span class="tray-time" id="trayTime">14:30</span></div>
+        </div>
+        <div id="winStartMenu" class="win7-start-menu">
+            <div class="menu-item" onclick="game.startMenuAction('shutdown')"><span class="item-icon">⏻</span> 关机</div>
+            <div class="menu-item" onclick="game.startMenuAction('restart')"><span class="item-icon">⟳</span> 重启</div>
+            <div class="menu-divider"></div>
+            <div class="menu-item" onclick="game.startMenuAction('tools')"><span class="item-icon">🔧</span> 安全工具</div>
+            <div class="menu-item" onclick="game.startMenuAction('about')"><span class="item-icon">ℹ️</span> 关于</div>
+            <div class="menu-divider"></div>
+            <div class="menu-item" onclick="game.closeVirtualDesktop()" style="color:#c0392b;font-weight:bold;"><span class="item-icon">✕</span> 返回游戏</div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
